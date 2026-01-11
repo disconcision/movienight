@@ -1,0 +1,92 @@
+import type { TMDBSearchResult, TMDBMovieDetails, Movie } from '../types'
+
+const TMDB_API_BASE = 'https://api.themoviedb.org/3'
+
+// Get API key from environment
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY
+
+export const isTMDBConfigured = Boolean(TMDB_API_KEY)
+
+/**
+ * Search for movies by title
+ */
+export async function searchMovies(query: string): Promise<TMDBSearchResult[]> {
+  if (!TMDB_API_KEY) {
+    console.warn('TMDB API key not configured')
+    return []
+  }
+
+  const params = new URLSearchParams({
+    api_key: TMDB_API_KEY,
+    query: query.trim(),
+    include_adult: 'false',
+  })
+
+  const response = await fetch(`${TMDB_API_BASE}/search/movie?${params}`)
+
+  if (!response.ok) {
+    throw new Error(`TMDB search failed: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  return data.results || []
+}
+
+/**
+ * Get detailed movie information including credits
+ */
+export async function getMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | null> {
+  if (!TMDB_API_KEY) {
+    console.warn('TMDB API key not configured')
+    return null
+  }
+
+  const params = new URLSearchParams({
+    api_key: TMDB_API_KEY,
+    append_to_response: 'credits',
+  })
+
+  const response = await fetch(`${TMDB_API_BASE}/movie/${tmdbId}?${params}`)
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null
+    }
+    throw new Error(`TMDB fetch failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Convert TMDB movie details to our Movie type
+ */
+export function tmdbToMovie(details: TMDBMovieDetails): Movie {
+  const director = details.credits?.crew.find((c) => c.job === 'Director')?.name ?? null
+  const cast = details.credits?.cast
+    .slice(0, 5)
+    .map((c) => c.name) ?? []
+
+  return {
+    tmdbId: String(details.id),
+    imdbId: details.imdb_id,
+    title: details.title,
+    year: details.release_date ? new Date(details.release_date).getFullYear() : 0,
+    posterPath: details.poster_path,
+    overview: details.overview,
+    runtime: details.runtime,
+    genres: details.genres.map((g) => g.name),
+    director,
+    cast,
+    rating: details.vote_average || null,
+    fetchedAt: new Date(),
+  }
+}
+
+/**
+ * Get the full URL for a poster image
+ */
+export function getPosterUrl(posterPath: string | null, size: 'w200' | 'w500' | 'original' = 'w500'): string | null {
+  if (!posterPath) return null
+  return `https://image.tmdb.org/t/p/${size}${posterPath}`
+}

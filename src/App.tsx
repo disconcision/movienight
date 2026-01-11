@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useCurrentUser, useMovies, useUsers, useUnseenMovies } from './hooks'
 import { UserIdentityModal, UserBadge } from './components/user'
-import { MovieGrid, UnseenList } from './components/movies'
+import { MovieGrid, UnseenList, MovieSearch } from './components/movies'
 import { GroupView } from './components/group'
 import { countUnseenBy } from './lib/priority'
 import { cn } from './lib/utils'
@@ -38,6 +38,9 @@ function App() {
 
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<Tab>('movies')
+
+  // Movie search modal state
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // Show login modal if no user
   const showLoginModal = !isUserLoading && !localUser
@@ -86,13 +89,28 @@ function App() {
             </div>
           </div>
 
-          {localUser && (
-            <UserBadge
-              name={localUser.name}
-              onLogout={logout}
-              isFirebaseConnected={isFirebaseConnected}
-            />
-          )}
+          <div className="flex items-center gap-3">
+            {/* Add Movie button - only show when Firebase is connected */}
+            {isFirebaseConnected && localUser && (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="hidden sm:inline">Add Movie</span>
+              </button>
+            )}
+
+            {localUser && (
+              <UserBadge
+                name={localUser.name}
+                onLogout={logout}
+                isFirebaseConnected={isFirebaseConnected}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -253,6 +271,32 @@ function App() {
 
       {/* Login modal */}
       <UserIdentityModal isOpen={showLoginModal} onLogin={login} />
+
+      {/* Movie search modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSearchOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-gray-900 border border-gray-700 rounded-xl shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+              <h2 className="text-lg font-semibold text-white">Add Movie</h2>
+              <button
+                onClick={() => setIsSearchOpen(false)}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <MovieSearch existingMovieIds={movies.map((m) => m.tmdbId)} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
