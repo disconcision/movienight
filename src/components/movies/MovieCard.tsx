@@ -22,7 +22,14 @@ export function MovieCard({
 
   const imdbUrl = getImdbUrl(movie.imdbId)
 
-  const handleClick = () => {
+  const handleCardClick = () => {
+    if (onToggleUnseen) {
+      onToggleUnseen()
+    }
+  }
+
+  const handleInfoClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (imdbUrl) {
       window.open(imdbUrl, '_blank', 'noopener,noreferrer')
     }
@@ -40,11 +47,12 @@ export function MovieCard({
       {/* Card */}
       <div
         className={cn(
-          'relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer transition-all duration-300',
+          'relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-300',
           'shadow-lg hover:shadow-2xl hover:scale-105',
+          onToggleUnseen && 'cursor-pointer',
           isUnseen ? 'ring-2 ring-primary-500' : 'opacity-75 hover:opacity-100'
         )}
-        onClick={handleClick}
+        onClick={handleCardClick}
       >
         {/* Poster Image */}
         <img
@@ -80,7 +88,7 @@ export function MovieCard({
           </div>
         )}
 
-        {/* Unseen indicator */}
+        {/* Unseen checkmark indicator */}
         {isUnseen && (
           <div className="absolute top-2 left-2">
             <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
@@ -90,27 +98,23 @@ export function MovieCard({
             </div>
           </div>
         )}
-      </div>
 
-      {/* Toggle unseen button */}
-      {onToggleUnseen && (
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isHovered ? 1 : 0 }}
-          className={cn(
-            'absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium transition-colors',
-            isUnseen
-              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              : 'bg-primary-600 text-white hover:bg-primary-500'
-          )}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleUnseen()
-          }}
-        >
-          {isUnseen ? 'Mark as seen' : "Haven't seen"}
-        </motion.button>
-      )}
+        {/* Info button - shows on hover */}
+        {imdbUrl && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isHovered ? 1 : 0.7 }}
+            whileHover={{ scale: 1.1 }}
+            className="absolute bottom-12 right-2 w-8 h-8 bg-gray-900/80 hover:bg-gray-800 rounded-full flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+            onClick={handleInfoClick}
+            title="View on IMDB"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </motion.button>
+        )}
+      </div>
 
       {/* Hover details card - desktop only */}
       {isHovered && (
@@ -164,6 +168,10 @@ export function MovieCard({
 
           <p className="mt-3 text-sm text-gray-400 leading-relaxed">
             {truncateText(movie.overview, 150)}
+          </p>
+
+          <p className="mt-3 text-xs text-primary-400">
+            Click card to {isUnseen ? 'remove from' : 'add to'} your list
           </p>
         </motion.div>
       )}
