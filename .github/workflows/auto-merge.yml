@@ -1,12 +1,6 @@
 name: Auto-merge Claude branches
 
 on:
-  # Trigger on push to claude/* branches to create PR
-  push:
-    branches:
-      - 'claude/**'
-
-  # Trigger when PR is opened/updated to run tests and merge
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
@@ -16,40 +10,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Job 1: Create PR when claude/* branch is pushed
-  create-pr:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Check if PR already exists
-          EXISTING_PR=$(gh pr list --head "${{ github.ref_name }}" --json number --jq '.[0].number')
-
-          if [ -z "$EXISTING_PR" ]; then
-            # Get the latest commit message for PR title
-            COMMIT_MSG=$(git log -1 --pretty=%B)
-
-            # Create PR
-            gh pr create \
-              --base main \
-              --head "${{ github.ref_name }}" \
-              --title "$COMMIT_MSG" \
-              --body "Automated PR from claude branch. Will auto-merge after tests pass."
-
-            echo "Created new PR"
-          else
-            echo "PR #$EXISTING_PR already exists"
-          fi
-
-  # Job 2: Test and merge PRs from claude/* branches
   test-and-merge:
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
+    # Only run for PRs from claude/* branches
+    if: startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
 
     steps:
