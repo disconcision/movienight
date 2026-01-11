@@ -1,11 +1,14 @@
 import {
   doc,
   deleteDoc,
+  setDoc,
   collection,
   getDocs,
   writeBatch,
+  serverTimestamp,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
+import { getTopRatedMovies, getMovieDetails, tmdbToMovie, isTMDBConfigured } from '../api/tmdb'
 
 const USERS_COLLECTION = 'users'
 const MOVIES_COLLECTION = 'movies'
@@ -104,4 +107,72 @@ export async function clearAllEvents(): Promise<number> {
 
   await batch.commit()
   return snapshot.docs.length
+}
+
+/**
+ * Seed movies from TMDB Top Rated list
+ * @param count Number of movies to seed (default 100)
+ * @param onProgress Callback for progress updates
+ */
+export async function seedTopRatedMovies(
+  count: number = 100,
+  onProgress?: (current: number, total: number) => void
+): Promise<number> {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase not configured')
+  }
+
+  if (!isTMDBConfigured) {
+    throw new Error('TMDB API key not configured')
+  }
+
+  // Calculate pages needed (20 movies per page)
+  const pages = Math.ceil(count / 20)
+
+  // Fetch top rated movies from TMDB
+  const topRated = await getTopRatedMovies(pages)
+  const moviesToSeed = topRated.slice(0, count)
+
+  // Get existing movies to avoid duplicates
+  const moviesRef = collection(db, MOVIES_COLLECTION)
+  const existingSnapshot = await getDocs(moviesRef)
+  const existingIds = new Set(existingSnapshot.docs.map((d) => d.id))
+
+  let added = 0
+
+  for (let i = 0; i < moviesToSeed.length; i++) {
+    const movie = moviesToSeed[i]
+    const tmdbId = String(movie.id)
+
+    // Skip if already exists
+    if (existingIds.has(tmdbId)) {
+      if (onProgress) onProgress(i + 1, moviesToSeed.length)
+      continue
+    }
+
+    try {
+      // Fetch full details
+      const details = await getMovieDetails(movie.id)
+      if (!details) continue
+
+      // Convert and save
+      const movieData = tmdbToMovie(details)
+      const movieRef = doc(db, MOVIES_COLLECTION, tmdbId)
+      await setDoc(movieRef, {
+        ...movieData,
+        fetchedAt: serverTimestamp(),
+      })
+
+      added++
+
+      // Rate limiting delay
+      await new Promise((r) => setTimeout(r, 150))
+    } catch (err) {
+      console.error(`Failed to add movie ${movie.title}:`, err)
+    }
+
+    if (onProgress) onProgress(i + 1, moviesToSeed.length)
+  }
+
+  return added
 }

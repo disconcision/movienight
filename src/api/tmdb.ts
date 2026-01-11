@@ -90,3 +90,47 @@ export function getPosterUrl(posterPath: string | null, size: 'w200' | 'w500' | 
   if (!posterPath) return null
   return `https://image.tmdb.org/t/p/${size}${posterPath}`
 }
+
+interface TMDBListResult {
+  page: number
+  results: TMDBSearchResult[]
+  total_pages: number
+  total_results: number
+}
+
+/**
+ * Get top rated movies from TMDB (similar to IMDB Top 250)
+ * @param pages Number of pages to fetch (20 movies per page)
+ */
+export async function getTopRatedMovies(pages: number = 5): Promise<TMDBSearchResult[]> {
+  if (!TMDB_API_KEY) {
+    console.warn('TMDB API key not configured')
+    return []
+  }
+
+  const allMovies: TMDBSearchResult[] = []
+
+  for (let page = 1; page <= pages; page++) {
+    const params = new URLSearchParams({
+      api_key: TMDB_API_KEY,
+      page: page.toString(),
+      language: 'en-US',
+    })
+
+    const response = await fetch(`${TMDB_API_BASE}/movie/top_rated?${params}`)
+
+    if (!response.ok) {
+      throw new Error(`TMDB fetch failed: ${response.statusText}`)
+    }
+
+    const data: TMDBListResult = await response.json()
+    allMovies.push(...data.results)
+
+    // Small delay to avoid rate limiting
+    if (page < pages) {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+  }
+
+  return allMovies
+}

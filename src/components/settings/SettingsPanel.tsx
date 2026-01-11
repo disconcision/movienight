@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { deleteUser, deleteMovie, clearAllMovies, clearAllEvents } from '../../db/admin'
+import { deleteUser, deleteMovie, clearAllMovies, clearAllEvents, seedTopRatedMovies } from '../../db/admin'
+import { isTMDBConfigured } from '../../api/tmdb'
 import type { Movie, User } from '../../types'
 import { cn } from '../../lib/utils'
 
@@ -20,9 +21,11 @@ export function SettingsPanel({
   currentUserName,
   isFirebaseConnected,
 }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'movies' | 'danger'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'movies' | 'seed' | 'danger'>('users')
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [seedProgress, setSeedProgress] = useState<{ current: number; total: number } | null>(null)
+  const [isSeeding, setIsSeeding] = useState(false)
 
   // Clear message after 3 seconds
   useEffect(() => {
@@ -99,6 +102,27 @@ export function SettingsPanel({
     }
   }
 
+  const handleSeedMovies = async (count: number) => {
+    if (!confirm(`This will add up to ${count} top-rated movies from TMDB. Continue?`)) {
+      return
+    }
+
+    setIsSeeding(true)
+    setSeedProgress({ current: 0, total: count })
+
+    try {
+      const added = await seedTopRatedMovies(count, (current, total) => {
+        setSeedProgress({ current, total })
+      })
+      setMessage({ type: 'success', text: `Added ${added} movies` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to seed movies' })
+    } finally {
+      setIsSeeding(false)
+      setSeedProgress(null)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -141,12 +165,12 @@ export function SettingsPanel({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-800">
-          {(['users', 'movies', 'danger'] as const).map((tab) => (
+          {(['users', 'movies', 'seed', 'danger'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+                'flex-1 px-3 py-2 text-sm font-medium transition-colors',
                 activeTab === tab
                   ? 'text-primary-400 border-b-2 border-primary-400'
                   : 'text-gray-400 hover:text-gray-200'
@@ -154,7 +178,8 @@ export function SettingsPanel({
             >
               {tab === 'users' && 'Users'}
               {tab === 'movies' && 'Movies'}
-              {tab === 'danger' && '⚠️ Danger'}
+              {tab === 'seed' && '📥 Seed'}
+              {tab === 'danger' && '⚠️'}
             </button>
           ))}
         </div>
@@ -250,6 +275,77 @@ export function SettingsPanel({
                       </div>
                     ))
                   )}
+                </div>
+              )}
+
+              {/* Seed tab */}
+              {activeTab === 'seed' && (
+                <div className="space-y-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-gray-200 font-medium mb-2">Seed Top Rated Movies</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Add highly-rated movies from TMDB (similar to IMDB Top 250) to your movie list.
+                      Movies already in your list will be skipped.
+                    </p>
+
+                    {!isTMDBConfigured ? (
+                      <p className="text-yellow-400 text-sm">
+                        TMDB API key not configured. Add <code className="px-1 bg-yellow-900/50 rounded">VITE_TMDB_API_KEY</code> to use this feature.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {seedProgress ? (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm text-gray-400">
+                              <span>Fetching movies...</span>
+                              <span>{seedProgress.current} / {seedProgress.total}</span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary-500 transition-all duration-300"
+                                style={{ width: `${(seedProgress.current / seedProgress.total) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleSeedMovies(50)}
+                              disabled={isSeeding}
+                              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 disabled:opacity-50"
+                            >
+                              Add Top 50
+                            </button>
+                            <button
+                              onClick={() => handleSeedMovies(100)}
+                              disabled={isSeeding}
+                              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 disabled:opacity-50"
+                            >
+                              Add Top 100
+                            </button>
+                            <button
+                              onClick={() => handleSeedMovies(150)}
+                              disabled={isSeeding}
+                              className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 disabled:opacity-50"
+                            >
+                              Add Top 150
+                            </button>
+                            <button
+                              onClick={() => handleSeedMovies(250)}
+                              disabled={isSeeding}
+                              className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 disabled:opacity-50"
+                            >
+                              Add Top 250
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Note: Fetching many movies may take a minute. Each movie requires a separate API call.
+                  </p>
                 </div>
               )}
 
