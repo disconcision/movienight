@@ -69,7 +69,7 @@ function App() {
       <header className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/popcorn.svg" alt="" className="w-10 h-10" />
+            <span className="text-3xl">🎬</span>
             <div>
               <h1 className="text-xl font-bold text-white">Movie Night</h1>
               {isUsingMockData && (

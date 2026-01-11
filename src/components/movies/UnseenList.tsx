@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -6,7 +6,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
@@ -16,7 +18,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion, AnimatePresence } from 'framer-motion'
 import type { Movie } from '../../types'
 import { getPosterUrl } from '../../lib/mockData'
 import { cn } from '../../lib/utils'
@@ -34,48 +35,40 @@ interface SortableMovieItemProps {
   onRemove: () => void
 }
 
-function SortableMovieItem({ movie, index, onRemove }: SortableMovieItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: movie.tmdbId })
+interface MovieItemContentProps {
+  movie: Movie
+  index: number
+  isDragOverlay?: boolean
+  onRemove?: () => void
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
+function MovieItemContent({ movie, index, isDragOverlay = false, onRemove }: MovieItemContentProps) {
   return (
-    <motion.div
-      ref={setNodeRef}
-      style={style}
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.2 }}
+    <div
       className={cn(
-        'flex items-center gap-3 p-2 bg-gray-800 rounded-lg group',
-        isDragging && 'opacity-50 shadow-lg'
+        'flex items-center gap-3 p-2 rounded-lg group',
+        isDragOverlay
+          ? 'bg-gray-700 shadow-2xl ring-2 ring-primary-500 scale-105'
+          : 'bg-gray-800'
       )}
     >
       {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="p-1 text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing"
-        aria-label="Drag to reorder"
+      <div
+        className={cn(
+          'p-1 text-gray-500',
+          isDragOverlay ? 'cursor-grabbing' : 'cursor-grab hover:text-gray-300'
+        )}
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
         </svg>
-      </button>
+      </div>
 
       {/* Rank number */}
-      <span className="text-sm font-bold text-primary-400 w-6 text-center">
+      <span className={cn(
+        'text-sm font-bold w-6 text-center',
+        isDragOverlay ? 'text-primary-300' : 'text-primary-400'
+      )}>
         {index + 1}
       </span>
 
@@ -94,17 +87,54 @@ function SortableMovieItem({ movie, index, onRemove }: SortableMovieItemProps) {
         <p className="text-xs text-gray-500">{movie.year}</p>
       </div>
 
-      {/* Remove button */}
-      <button
-        onClick={onRemove}
-        className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Mark as seen"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </motion.div>
+      {/* Remove button - hidden in overlay */}
+      {!isDragOverlay && onRemove && (
+        <button
+          onClick={onRemove}
+          className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Mark as seen"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  )
+}
+
+function SortableMovieItem({ movie, index, onRemove }: SortableMovieItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: movie.tmdbId })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'touch-none transition-all duration-200',
+        isDragging && 'opacity-40 scale-95'
+      )}
+    >
+      <MovieItemContent
+        movie={movie}
+        index={index}
+        onRemove={onRemove}
+      />
+    </div>
   )
 }
 
@@ -114,8 +144,14 @@ export function UnseenList({
   onReorder,
   onRemove,
 }: UnseenListProps) {
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement before drag starts
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -129,8 +165,21 @@ export function UnseenList({
       .filter((m): m is Movie => m !== undefined)
   }, [movies, unseenMovieIds])
 
+  // Find the active movie for the drag overlay
+  const activeMovie = useMemo(() => {
+    if (!activeId) return null
+    return orderedMovies.find(m => m.tmdbId === activeId) ?? null
+  }, [activeId, orderedMovies])
+
+  const activeIndex = activeId ? unseenMovieIds.indexOf(activeId) : -1
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
+    setActiveId(null)
 
     if (over && active.id !== over.id) {
       const oldIndex = unseenMovieIds.indexOf(active.id as string)
@@ -138,6 +187,10 @@ export function UnseenList({
       const newOrder = arrayMove(unseenMovieIds, oldIndex, newIndex)
       onReorder(newOrder)
     }
+  }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
   }
 
   if (orderedMovies.length === 0) {
@@ -149,7 +202,7 @@ export function UnseenList({
         </svg>
         <p className="text-sm font-medium">No movies selected</p>
         <p className="text-xs text-gray-600 mt-1">
-          Click movies to mark them as unseen
+          Click movies to add them to your list
         </p>
       </div>
     )
@@ -159,25 +212,36 @@ export function UnseenList({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <SortableContext
         items={unseenMovieIds}
         strategy={verticalListSortingStrategy}
       >
         <div className="space-y-2">
-          <AnimatePresence mode="popLayout">
-            {orderedMovies.map((movie, index) => (
-              <SortableMovieItem
-                key={movie.tmdbId}
-                movie={movie}
-                index={index}
-                onRemove={() => onRemove(movie.tmdbId)}
-              />
-            ))}
-          </AnimatePresence>
+          {orderedMovies.map((movie, index) => (
+            <SortableMovieItem
+              key={movie.tmdbId}
+              movie={movie}
+              index={index}
+              onRemove={() => onRemove(movie.tmdbId)}
+            />
+          ))}
         </div>
       </SortableContext>
+
+      {/* Drag overlay - follows cursor */}
+      <DragOverlay>
+        {activeMovie && (
+          <MovieItemContent
+            movie={activeMovie}
+            index={activeIndex}
+            isDragOverlay
+          />
+        )}
+      </DragOverlay>
     </DndContext>
   )
 }
