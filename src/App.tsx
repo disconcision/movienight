@@ -3,11 +3,12 @@ import { useCurrentUser, useMovies, useUsers, useUnseenMovies } from './hooks'
 import { UserIdentityModal, UserBadge } from './components/user'
 import { MovieGrid, UnseenList, MovieSearch } from './components/movies'
 import { GroupView } from './components/group'
+import { ScheduleView } from './components/scheduling'
 import { countUnseenBy } from './lib/priority'
 import { cn } from './lib/utils'
 import type { User, Movie } from './types'
 
-type Tab = 'movies' | 'my-list' | 'group'
+type Tab = 'movies' | 'my-list' | 'group' | 'schedule'
 
 function App() {
   const {
@@ -160,6 +161,17 @@ function App() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={cn(
+              'flex-1 py-3 text-sm font-medium transition-colors',
+              activeTab === 'schedule'
+                ? 'text-primary-400 border-b-2 border-primary-400'
+                : 'text-gray-400'
+            )}
+          >
+            📅
+          </button>
         </div>
       </div>
 
@@ -257,11 +269,29 @@ function App() {
             currentUserName={localUser?.name ?? null}
           />
         </div>
+
+        {/* Schedule view - only visible on mobile when active */}
+        <div
+          className={cn(
+            'w-full md:hidden',
+            activeTab !== 'schedule' && 'hidden'
+          )}
+        >
+          <ScheduleView
+            currentUserName={localUser?.name ?? null}
+            movies={movies}
+            isFirebaseConnected={isFirebaseConnected}
+          />
+        </div>
       </main>
 
-      {/* Desktop: Group view as a collapsible panel or modal could be added later */}
-      {/* For now, we show group info in a bottom sheet on desktop */}
-      <div className="hidden md:block fixed bottom-4 right-4 z-30">
+      {/* Desktop: Floating panels for Group and Schedule */}
+      <div className="hidden md:flex fixed bottom-4 right-4 z-30 gap-2">
+        <SchedulePanel
+          currentUserName={localUser?.name ?? null}
+          movies={movies}
+          isFirebaseConnected={isFirebaseConnected}
+        />
         <GroupPanel
           users={allUsers}
           movies={movies}
@@ -298,6 +328,67 @@ function App() {
         </div>
       )}
     </div>
+  )
+}
+
+// Floating schedule panel for desktop
+function SchedulePanel({
+  currentUserName,
+  movies,
+  isFirebaseConnected,
+}: {
+  currentUserName: string | null
+  movies: Movie[]
+  isFirebaseConnected: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      {/* Toggle button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-colors',
+          isOpen ? 'bg-primary-600 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+        )}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        Schedule
+      </button>
+
+      {/* Panel */}
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute bottom-14 right-0 w-[500px] max-h-[70vh] bg-gray-800 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-100">Schedule</h3>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
+              <ScheduleView
+                currentUserName={currentUserName}
+                movies={movies}
+                isFirebaseConnected={isFirebaseConnected}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </>
   )
 }
 
