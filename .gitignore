@@ -31,3 +31,7 @@ dist-ssr
 # Firebase
 .firebase/
 firebase-debug.log
+
+# TypeScript build info
+*.tsbuildinfo
+vite.config.d.ts
