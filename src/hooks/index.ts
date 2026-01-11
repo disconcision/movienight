@@ -1,3 +1,4 @@
 export { useCurrentUser } from './useCurrentUser'
 export { useMovies } from './useMovies'
 export { useUsers } from './useUsers'
+export { useUnseenMovies } from './useUnseenMovies'
