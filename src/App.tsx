@@ -1,18 +1,19 @@
 import { useState, useMemo } from 'react'
 import { useCurrentUser, useMovies, useUsers, useUnseenMovies } from './hooks'
 import { UserIdentityModal, UserBadge } from './components/user'
-import { MovieGrid, UnseenList } from './components/movies'
+import { MovieGrid, UnseenList, MovieSearch } from './components/movies'
 import { GroupView } from './components/group'
+import { ScheduleView } from './components/scheduling'
+import { SettingsPanel } from './components/settings'
 import { countUnseenBy } from './lib/priority'
 import { cn } from './lib/utils'
 import type { User, Movie } from './types'
 
-type Tab = 'movies' | 'my-list' | 'group'
+type Tab = 'movies' | 'my-list' | 'group' | 'schedule'
 
 function App() {
   const {
     localUser,
-    firestoreUser,
     isLoading: isUserLoading,
     login,
     logout,
@@ -22,14 +23,29 @@ function App() {
   const { movies, isLoading: isMoviesLoading } = useMovies()
   const { users: firestoreUsers } = useUsers()
 
-  // Unseen movies management
+  // Get the current user from the real-time users subscription
+  // This ensures we get real-time updates when other devices modify our list
+  const currentUserFromSubscription = useMemo(() => {
+    if (!localUser) return null
+    return firestoreUsers.find(
+      (u) => u.name.toLowerCase() === localUser.name.toLowerCase()
+    ) ?? null
+  }, [firestoreUsers, localUser])
+
+  // Unseen movies management - use real-time subscription data
   const { unseenMovies, toggleUnseen, reorderUnseenMovies } = useUnseenMovies(
     localUser?.name ?? null,
-    firestoreUser
+    currentUserFromSubscription
   )
 
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<Tab>('movies')
+
+  // Movie search modal state
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+
+  // Settings modal state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Show login modal if no user
   const showLoginModal = !isUserLoading && !localUser
@@ -78,13 +94,42 @@ function App() {
             </div>
           </div>
 
-          {localUser && (
-            <UserBadge
-              name={localUser.name}
-              onLogout={logout}
-              isFirebaseConnected={isFirebaseConnected}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {/* Add Movie button - only show when Firebase is connected */}
+            {isFirebaseConnected && localUser && (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="hidden sm:inline">Add Movie</span>
+              </button>
+            )}
+
+            {/* Settings button */}
+            {localUser && (
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 text-gray-400 hover:text-white transition-colors"
+                title="Settings"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            )}
+
+            {localUser && (
+              <UserBadge
+                name={localUser.name}
+                onLogout={logout}
+                isFirebaseConnected={isFirebaseConnected}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -133,6 +178,17 @@ function App() {
                 {allUsers.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={cn(
+              'flex-1 py-3 text-sm font-medium transition-colors',
+              activeTab === 'schedule'
+                ? 'text-primary-400 border-b-2 border-primary-400'
+                : 'text-gray-400'
+            )}
+          >
+            📅
           </button>
         </div>
       </div>
@@ -231,11 +287,29 @@ function App() {
             currentUserName={localUser?.name ?? null}
           />
         </div>
+
+        {/* Schedule view - only visible on mobile when active */}
+        <div
+          className={cn(
+            'w-full md:hidden',
+            activeTab !== 'schedule' && 'hidden'
+          )}
+        >
+          <ScheduleView
+            currentUserName={localUser?.name ?? null}
+            movies={movies}
+            isFirebaseConnected={isFirebaseConnected}
+          />
+        </div>
       </main>
 
-      {/* Desktop: Group view as a collapsible panel or modal could be added later */}
-      {/* For now, we show group info in a bottom sheet on desktop */}
-      <div className="hidden md:block fixed bottom-4 right-4 z-30">
+      {/* Desktop: Floating panels for Group and Schedule */}
+      <div className="hidden md:flex fixed bottom-4 right-4 z-30 gap-2">
+        <SchedulePanel
+          currentUserName={localUser?.name ?? null}
+          movies={movies}
+          isFirebaseConnected={isFirebaseConnected}
+        />
         <GroupPanel
           users={allUsers}
           movies={movies}
@@ -245,7 +319,104 @@ function App() {
 
       {/* Login modal */}
       <UserIdentityModal isOpen={showLoginModal} onLogin={login} />
+
+      {/* Movie search modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSearchOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-gray-900 border border-gray-700 rounded-xl shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+              <h2 className="text-lg font-semibold text-white">Add Movie</h2>
+              <button
+                onClick={() => setIsSearchOpen(false)}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <MovieSearch existingMovieIds={movies.map((m) => m.tmdbId)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings panel */}
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        users={allUsers}
+        movies={movies}
+        currentUserName={localUser?.name ?? null}
+        isFirebaseConnected={isFirebaseConnected}
+      />
     </div>
+  )
+}
+
+// Floating schedule panel for desktop
+function SchedulePanel({
+  currentUserName,
+  movies,
+  isFirebaseConnected,
+}: {
+  currentUserName: string | null
+  movies: Movie[]
+  isFirebaseConnected: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      {/* Toggle button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-colors',
+          isOpen ? 'bg-primary-600 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+        )}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        Schedule
+      </button>
+
+      {/* Panel */}
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute bottom-14 right-0 w-[500px] max-h-[70vh] bg-gray-800 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-100">Schedule</h3>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
+              <ScheduleView
+                currentUserName={currentUserName}
+                movies={movies}
+                isFirebaseConnected={isFirebaseConnected}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </>
   )
 }
 

@@ -24,9 +24,12 @@ export interface User {
   updatedAt: Date
 }
 
+// Time slots (defined early since used in Availability)
+export type TimeSlot = 'afternoon' | 'evening'
+
 export interface Availability {
   name: string
-  slots: Record<string, string[]> // ISO date string -> ["afternoon", "evening"]
+  slots: Record<string, TimeSlot[]> // ISO date string -> ["afternoon", "evening"]
   updatedAt: Date
 }
 
@@ -53,10 +56,8 @@ export interface LocalUser {
 }
 
 // ============================================
-// Time Slots
+// Time Slots (additional exports)
 // ============================================
-
-export type TimeSlot = 'afternoon' | 'evening'
 
 export const TIME_SLOTS: readonly TimeSlot[] = ['afternoon', 'evening'] as const
 
