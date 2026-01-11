@@ -10,26 +10,29 @@ This is a collaborative web app for coordinating movie nights with friends. User
 
 ## Current Status
 
-**Phase:** Core Features Complete
-**Last Updated:** Initial development session
-**Live Preview:** https://disconcision.github.io/movienight/ (after GitHub Pages is enabled)
-**Next Milestone:** Firebase integration and TMDB API
+**Phase:** Feature Complete (MVP+)
+**Last Updated:** January 2026
+**Live Preview:** https://disconcision.github.io/movienight/
+**Next Milestone:** Polish and optional auth
 
 ### What's Working
 - User identification with localStorage persistence
 - Movie grid with poster images and hover details
-- Toggle unseen status on movies
+- Toggle unseen status on movies (click card to toggle)
 - Priority list with drag-and-drop reordering (dnd-kit)
 - Group view showing all users and their lists
 - Intersection list with aggregate priority scoring
 - Mobile-responsive with tab navigation
-- Demo mode with mock movie data
+- TMDB search to add movies to the shared list
+- Real-time sync across devices via Firestore
+- Scheduling: availability grid and event creation
+- Settings panel for admin operations (delete users/movies)
 - GitHub Actions workflow for auto-deploy
 
 ### What Needs Setup (By Human)
-- GitHub Pages enabled in repo settings
-- Firebase project created + secrets added to GitHub
-- TMDB API key added to GitHub secrets
+- GitHub Pages enabled in repo settings (done)
+- Firebase project created + secrets added to GitHub (done)
+- TMDB API key added to GitHub secrets (needed for movie search)
 
 ## GitHub Pages Deployment
 
@@ -152,65 +155,140 @@ After adding secrets, trigger a new deployment:
 
 ## TODO — Current Priorities
 
-### Phase 1: Foundation ✅
+### Phase 1-4: Core Features ✅
 - [x] Project scaffolding (Vite + React + TypeScript + Tailwind)
 - [x] Firebase configuration module (works offline with mock data)
 - [x] TypeScript types defined
 - [x] User identification flow
-- [x] Basic movie grid with mock data
+- [x] Movie grid with hover details
+- [x] Toggle unseen status, personal unseen list, drag-and-drop reordering
+- [x] Firestore real-time sync
+- [x] Group view with intersection list and priority scoring
 - [x] GitHub Actions deployment
 
-### Phase 2: Core Movie Features (Partially Complete)
-- [ ] Seed script for IMDB Top 250
-- [x] Movie grid display
-- [x] Hover cards with movie details
-- [x] Click to open IMDB link
-- [ ] TMDB API integration for search
+### Phase 5: Movie Management ✅
+- [x] TMDB search integration
+- [x] Add movies via search
+- [x] Remove movies via settings panel
+- [ ] Seed script for IMDB Top 250 (optional)
 
-### Phase 3: Selection & Prioritization ✅
-- [x] Toggle "unseen" status on movies
-- [x] Personal unseen list sidebar
-- [x] Drag-and-drop reordering (dnd-kit)
-- [x] localStorage persistence for demo mode
-- [ ] Firestore sync (requires Firebase setup)
-
-### Phase 4: Group Features ✅
-- [x] Group view showing all users
-- [x] User list expansion with movie previews
-- [x] Intersection list calculation
-- [x] Aggregate priority scoring
-- [x] Desktop floating panel and mobile tab
-
-### Phase 5: Movie Management
-- [ ] TMDB search integration
-- [ ] Add movies to master list
-- [ ] Remove movies from master list
-
-### Phase 6: Scheduling
-- [ ] Availability grid UI
-- [ ] Availability Firestore sync
-- [ ] "Best times" calculation
-- [ ] Create/view scheduled events
+### Phase 6: Scheduling ✅
+- [x] Availability grid UI
+- [x] Availability Firestore sync
+- [x] Overlap visualization (green = multiple available)
+- [x] Create scheduled events (double-click)
+- [x] Upcoming events list
 - [ ] "Mark as watched" functionality
 
-### Phase 7: Polish
-- [x] Mobile responsiveness
-- [x] Basic animations (Framer Motion)
+### Phase 7: Admin & Settings ✅
+- [x] Settings panel
+- [x] Delete test users
+- [x] Remove movies from list
+- [x] Clear all events/movies
+
+### Phase 8: Polish (Optional)
 - [ ] Error handling and loading states
 - [ ] Accessibility pass
+- [ ] Consider lightweight auth (see below)
+
+## Lightweight Auth Options
+
+The app currently uses "trust-based" identity — anyone can claim any name. This works for small friend groups but could be problematic if the link is shared publicly. Here are lightweight options to consider:
+
+### Option 1: Room Code (Simplest)
+**How it works:**
+- Generate a random room code when first user visits (e.g., `movienight.app/xyz123`)
+- Store code in Firestore
+- Anyone with the code can join and use any name
+- No passwords, just obscurity through randomness
+
+**Pros:** Very simple, no accounts needed
+**Cons:** Link sharing = full access, no per-user verification
+
+**Implementation:**
+- Generate random code on first visit
+- Store `rooms/{code}/users`, `rooms/{code}/movies`, etc.
+- URL becomes the "password"
+
+### Option 2: Simple PIN/Password
+**How it works:**
+- Admin sets a shared PIN (e.g., 4 digits) during setup
+- Users enter PIN to unlock the app
+- PIN stored in Firestore (hashed)
+
+**Pros:** Slightly more secure than room code
+**Cons:** Everyone shares same PIN, still no per-user verification
+
+**Implementation:**
+- Add PIN input to login modal
+- Store hashed PIN in Firestore config
+- Verify before allowing access
+
+### Option 3: Firebase Anonymous Auth + Link Names
+**How it works:**
+- Use Firebase Anonymous Auth for device identity
+- Users still pick display names
+- Firestore rules verify anonymous auth token
+- Names linked to anonymous UID to prevent impersonation
+
+**Pros:** Prevents name squatting, device-level identity
+**Cons:** New device = new identity (unless they remember name)
+
+**Implementation:**
+- Enable Anonymous Auth in Firebase Console
+- `signInAnonymously()` on app load
+- Link name to UID in Firestore
+- Rules: `request.auth != null` for all writes
+
+### Option 4: Magic Link (Email)
+**How it works:**
+- Users enter email to receive magic link
+- Click link to authenticate
+- Firebase handles email sending
+
+**Pros:** Real identity verification, familiar UX
+**Cons:** More complex, requires email, some friction
+
+**Implementation:**
+- Enable Email Link auth in Firebase Console
+- Configure email templates
+- Handle link verification
+
+### Recommendation
+For a friends-only app, **Option 3 (Anonymous Auth)** provides a good balance:
+- No friction for users (auto-sign-in)
+- Prevents name impersonation
+- Easy to implement
+- Can upgrade to email auth later if needed
+
+The simplest path for now: stick with current approach and rely on the obscurity of the URL. Add PIN/room code if you want minimal protection without Firebase Auth complexity.
 
 ## Architecture Notes
 
 ### Key Directories
 ```
 src/
+├── api/            # External API clients
+│   └── tmdb.ts     # TMDB API for movie search
 ├── components/     # UI components by feature
-│   ├── movies/     # MovieGrid, MovieCard, UnseenList
+│   ├── movies/     # MovieGrid, MovieCard, UnseenList, MovieSearch
 │   ├── group/      # GroupView
+│   ├── scheduling/ # ScheduleView
+│   ├── settings/   # SettingsPanel
 │   ├── user/       # UserBadge, UserIdentityModal
 │   └── ui/         # Generic Button, Modal, Input
 ├── hooks/          # Custom React hooks
+│   ├── useMovies.ts
+│   ├── useUsers.ts
+│   ├── useUnseenMovies.ts
+│   ├── useMovieSearch.ts
+│   └── useScheduling.ts
 ├── db/             # Firebase/Firestore operations
+│   ├── firebase.ts # Firebase initialization
+│   ├── movies.ts   # Movie CRUD
+│   ├── users.ts    # User CRUD
+│   ├── scheduling.ts # Availability and events
+│   └── admin.ts    # Admin operations
 ├── lib/            # Pure utility functions (tested)
 └── types/          # TypeScript interfaces
 ```
@@ -219,7 +297,8 @@ src/
 - **User identity:** localStorage → Firestore (when connected)
 - **Unseen movies:** useUnseenMovies hook (localStorage or Firestore)
 - **Movie data:** useMovies hook (mock data or Firestore)
-- **Users list:** useUsers hook (Firestore subscription)
+- **Users list:** useUsers hook (Firestore subscription, real-time)
+- **Scheduling:** useScheduling hook (availability + events)
 
 ### Testing
 - `npm test` — runs Vitest
