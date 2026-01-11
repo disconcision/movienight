@@ -12,7 +12,6 @@ type Tab = 'movies' | 'my-list' | 'group'
 function App() {
   const {
     localUser,
-    firestoreUser,
     isLoading: isUserLoading,
     login,
     logout,
@@ -22,10 +21,19 @@ function App() {
   const { movies, isLoading: isMoviesLoading } = useMovies()
   const { users: firestoreUsers } = useUsers()
 
-  // Unseen movies management
+  // Get the current user from the real-time users subscription
+  // This ensures we get real-time updates when other devices modify our list
+  const currentUserFromSubscription = useMemo(() => {
+    if (!localUser) return null
+    return firestoreUsers.find(
+      (u) => u.name.toLowerCase() === localUser.name.toLowerCase()
+    ) ?? null
+  }, [firestoreUsers, localUser])
+
+  // Unseen movies management - use real-time subscription data
   const { unseenMovies, toggleUnseen, reorderUnseenMovies } = useUnseenMovies(
     localUser?.name ?? null,
-    firestoreUser
+    currentUserFromSubscription
   )
 
   // Mobile tab state
