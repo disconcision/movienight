@@ -12,7 +12,8 @@ This is a collaborative web app for coordinating movie nights with friends. User
 
 **Phase:** Core Features Complete
 **Last Updated:** Initial development session
-**Next Milestone:** TMDB API integration and movie search
+**Live Preview:** https://disconcision.github.io/movienight/ (after GitHub Pages is enabled)
+**Next Milestone:** Firebase integration and TMDB API
 
 ### What's Working
 - User identification with localStorage persistence
@@ -23,51 +24,141 @@ This is a collaborative web app for coordinating movie nights with friends. User
 - Intersection list with aggregate priority scoring
 - Mobile-responsive with tab navigation
 - Demo mode with mock movie data
+- GitHub Actions workflow for auto-deploy
 
-### What Needs Firebase
-- Real-time sync between users
-- Persistent storage across devices
-- Seed script to populate IMDB Top 250
+### What Needs Setup (By Human)
+- GitHub Pages enabled in repo settings
+- Firebase project created + secrets added to GitHub
+- TMDB API key added to GitHub secrets
+
+## GitHub Pages Deployment
+
+The app auto-deploys to GitHub Pages on every push. To enable:
+
+### Enable GitHub Pages (One-time, via GitHub UI)
+1. Go to your repo: https://github.com/disconcision/movienight
+2. Click **Settings** (tab at top)
+3. In sidebar, click **Pages**
+4. Under "Build and deployment":
+   - Source: **GitHub Actions**
+5. That's it! The workflow will deploy on next push.
+
+**Live URL will be:** https://disconcision.github.io/movienight/
+
+The app works in demo mode without any secrets configured. Add secrets later to enable Firebase sync.
+
+## Adding GitHub Secrets (Via GitHub UI)
+
+All secrets are added through the GitHub web interface. No local commands needed.
+
+### How to Add a Secret
+1. Go to: https://github.com/disconcision/movienight/settings/secrets/actions
+2. Click **New repository secret**
+3. Enter the name and value
+4. Click **Add secret**
+
+### Required Secrets (Optional - app works without them)
+
+After setting up Firebase and TMDB, add these secrets:
+
+| Secret Name | Where to Get It |
+|-------------|-----------------|
+| `VITE_FIREBASE_API_KEY` | Firebase Console → Project Settings → Your apps → Config |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Same location (format: `project-id.firebaseapp.com`) |
+| `VITE_FIREBASE_PROJECT_ID` | Same location |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Same location (format: `project-id.appspot.com`) |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Same location |
+| `VITE_FIREBASE_APP_ID` | Same location |
+| `VITE_TMDB_API_KEY` | TMDB website → Settings → API |
+
+## Firebase Setup (All Via Web UI)
+
+### 1. Create Firebase Project
+1. Go to https://console.firebase.google.com
+2. Click **"Create a project"**
+3. Enter project name: `movienight` (or any name)
+4. **Disable** Google Analytics (not needed)
+5. Click **"Create project"**
+6. Wait for it to complete, then click **"Continue"**
+
+### 2. Enable Firestore Database
+1. In the left sidebar, click **Build → Firestore Database**
+2. Click **"Create database"**
+3. Select **"Start in test mode"** (allows reads/writes for 30 days)
+4. Choose a location close to you (e.g., `us-central1` or `us-east1`)
+5. Click **"Enable"**
+
+### 3. Register Web App & Get Config
+1. Click the **gear icon** (top left) → **Project settings**
+2. Scroll down to **"Your apps"** section
+3. Click the **web icon** (`</>`)
+4. Enter nickname: `movienight-web`
+5. **Skip** Firebase Hosting checkbox
+6. Click **"Register app"**
+7. You'll see a config object like this:
+   ```javascript
+   const firebaseConfig = {
+     apiKey: "AIzaSy...",
+     authDomain: "movienight-abc123.firebaseapp.com",
+     projectId: "movienight-abc123",
+     storageBucket: "movienight-abc123.appspot.com",
+     messagingSenderId: "123456789",
+     appId: "1:123456789:web:abc123def456"
+   };
+   ```
+8. Copy each value and add as GitHub secrets (see table above)
+
+### 4. Get TMDB API Key
+1. Go to https://www.themoviedb.org and create an account
+2. Click your profile icon → **Settings**
+3. In sidebar, click **API**
+4. Click **"Create"** or **"Request an API Key"**
+5. Select **"Developer"**
+6. Fill out the form:
+   - Type of use: Personal
+   - Application name: Movie Night Coordinator
+   - Application URL: `https://disconcision.github.io/movienight/`
+   - Application summary: Personal movie coordination app
+7. Accept terms and submit
+8. Copy the **"API Key (v3 auth)"**
+9. Add as GitHub secret: `VITE_TMDB_API_KEY`
+
+### 5. Trigger Rebuild
+After adding secrets, trigger a new deployment:
+- Push any commit, OR
+- Go to Actions tab → select workflow → click "Re-run all jobs"
 
 ## Development Workflow
 
-### Before Starting Work
+### For Agents
 
-1. Read `PROJECT_PLAN.md` to understand the full specification
-2. Check the TODO sections below for current priorities
-3. Run `npm run dev` to verify the app builds/runs
-4. Run `npm test` to verify tests pass
+1. Read this file and `PROJECT_PLAN.md` for context
+2. Check TODO list below for priorities
+3. Make changes, run `npm test`, commit incrementally
+4. Push to trigger deployment
 
 ### Git Practices
-
-- **Commit incrementally** after each logical unit of work
-- **Commit messages** should be descriptive
-- **Push regularly** to the feature branch
-- **Never push to main** without explicit permission
+- Commit incrementally after each logical unit
+- Descriptive commit messages
+- Push regularly to feature branch
+- Don't push to main without permission
 
 ### Code Standards
-
 - TypeScript strict mode — no `any` types
-- Functional style — prefer pure functions, avoid classes, minimize mutation
-- Components should be small and composable
-- Business logic separated from UI (custom hooks, utility functions)
-- All Firestore operations through the `src/db/` module
-- Mobile-first responsive design
-
-### Testing
-
-- Run tests before committing: `npm test`
-- Test pure functions (lib/), not Firebase internals
-- Fix failing tests before moving on
+- Functional style — pure functions, minimal mutation
+- Small, composable components
+- Business logic in hooks/lib, not components
+- Firestore ops through `src/db/` module
 
 ## TODO — Current Priorities
 
-### Phase 1: Foundation (MVP) ✅
+### Phase 1: Foundation ✅
 - [x] Project scaffolding (Vite + React + TypeScript + Tailwind)
 - [x] Firebase configuration module (works offline with mock data)
 - [x] TypeScript types defined
-- [x] User identification flow (name entry modal, localStorage)
+- [x] User identification flow
 - [x] Basic movie grid with mock data
+- [x] GitHub Actions deployment
 
 ### Phase 2: Core Movie Features (Partially Complete)
 - [ ] Seed script for IMDB Top 250
@@ -87,7 +178,7 @@ This is a collaborative web app for coordinating movie nights with friends. User
 - [x] Group view showing all users
 - [x] User list expansion with movie previews
 - [x] Intersection list calculation
-- [x] Aggregate priority scoring with visual bars
+- [x] Aggregate priority scoring
 - [x] Desktop floating panel and mobile tab
 
 ### Phase 5: Movie Management
@@ -103,102 +194,34 @@ This is a collaborative web app for coordinating movie nights with friends. User
 - [ ] "Mark as watched" functionality
 
 ### Phase 7: Polish
-- [x] Mobile responsiveness (tabs, layouts)
+- [x] Mobile responsiveness
 - [x] Basic animations (Framer Motion)
 - [ ] Error handling and loading states
 - [ ] Accessibility pass
 
-## Firebase Setup (For Human)
-
-When ready to connect to Firebase, follow these steps:
-
-### 1. Create Firebase Project
-1. Go to https://console.firebase.google.com
-2. Click "Create a project"
-3. Enter project name (e.g., "movie-night-app")
-4. Disable Google Analytics (not needed)
-5. Click "Create project"
-
-### 2. Enable Firestore Database
-1. In Firebase Console sidebar: **Build → Firestore Database**
-2. Click "Create database"
-3. Select "Start in **test mode**" (allows all reads/writes)
-4. Choose a region close to your users (e.g., us-central1)
-5. Click "Enable"
-
-### 3. Register Web App
-1. Go to **Project Settings** (gear icon in sidebar)
-2. Scroll to "Your apps" section
-3. Click the web icon (`</>`) to add a web app
-4. Enter a nickname (e.g., "movie-night-web")
-5. Skip Firebase Hosting for now
-6. Click "Register app"
-
-### 4. Copy Config to .env.local
-Create a file called `.env.local` in the project root (this file is gitignored):
-
-```env
-VITE_FIREBASE_API_KEY=AIza...your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abc123
-```
-
-### 5. Get TMDB API Key (for movie search)
-1. Create account at https://www.themoviedb.org
-2. Go to **Settings → API** (in your profile)
-3. Click "Create" under Request an API Key
-4. Select "Developer"
-5. Fill out the form (use personal/hobby for type)
-6. Copy the "API Key (v3 auth)"
-7. Add to `.env.local`:
-   ```
-   VITE_TMDB_API_KEY=your-tmdb-api-key
-   ```
-
-### 6. Restart Dev Server
-After creating `.env.local`, restart the dev server:
-```bash
-npm run dev
-```
-
-The app will now connect to Firebase and show "Online" instead of "Demo mode".
-
-### 7. (Optional) Deploy Firestore Rules
-To deploy the security rules:
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init firestore  # Select your existing project
-firebase deploy --only firestore:rules
-```
-
-## Notes for Handoff
-
-- The app works fully in demo mode with mock data
-- Selections are persisted to localStorage in demo mode
-- Once `.env.local` is configured, it connects to real Firestore
-- The seed script (`scripts/seed-movies.ts`) requires both Firebase and TMDB credentials
-- Run `npm test` to verify nothing is broken
-- Check `package.json` scripts for available commands
-
 ## Architecture Notes
 
 ### Key Directories
-- `src/components/` — UI components organized by feature
-- `src/hooks/` — Custom React hooks for state management
-- `src/db/` — Firebase/Firestore operations
-- `src/lib/` — Pure utility functions (tested)
-- `src/types/` — TypeScript interfaces
+```
+src/
+├── components/     # UI components by feature
+│   ├── movies/     # MovieGrid, MovieCard, UnseenList
+│   ├── group/      # GroupView
+│   ├── user/       # UserBadge, UserIdentityModal
+│   └── ui/         # Generic Button, Modal, Input
+├── hooks/          # Custom React hooks
+├── db/             # Firebase/Firestore operations
+├── lib/            # Pure utility functions (tested)
+└── types/          # TypeScript interfaces
+```
 
-### State Management
-- User identity: localStorage + Firestore
-- Unseen movies: useUnseenMovies hook (localStorage or Firestore)
-- Movie data: useMovies hook (mock data or Firestore subscription)
-- Users list: useUsers hook (Firestore subscription)
+### State Flow
+- **User identity:** localStorage → Firestore (when connected)
+- **Unseen movies:** useUnseenMovies hook (localStorage or Firestore)
+- **Movie data:** useMovies hook (mock data or Firestore)
+- **Users list:** useUsers hook (Firestore subscription)
 
 ### Testing
-- `src/lib/priority.test.ts` — Priority calculation tests
-- `src/lib/utils.test.ts` — Utility function tests
+- `npm test` — runs Vitest
+- Tests in `src/lib/*.test.ts`
+- Focus on pure functions, not Firebase/UI
