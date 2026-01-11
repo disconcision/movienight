@@ -19,7 +19,7 @@ function App() {
     isFirebaseConnected,
   } = useCurrentUser()
 
-  const { movies, isLoading: isMoviesLoading, isUsingMockData } = useMovies()
+  const { movies, isLoading: isMoviesLoading } = useMovies()
   const { users: firestoreUsers } = useUsers()
 
   // Unseen movies management
@@ -69,10 +69,10 @@ function App() {
       <header className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/popcorn.svg" alt="" className="w-10 h-10" />
+            <span className="text-3xl">🎬</span>
             <div>
               <h1 className="text-xl font-bold text-white">Movie Night</h1>
-              {isUsingMockData && (
+              {!isFirebaseConnected && (
                 <p className="text-xs text-yellow-400">Demo mode - using sample data</p>
               )}
             </div>
@@ -146,8 +146,8 @@ function App() {
             activeTab !== 'movies' && 'hidden md:block'
           )}
         >
-          {/* Info banner when using mock data */}
-          {isUsingMockData && (
+          {/* Info banner when Firebase not configured */}
+          {!isFirebaseConnected && (
             <div className="mx-4 mt-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
               <div className="flex items-start gap-3">
                 <svg
