@@ -66,3 +66,4 @@ VITE_TMDB_API_KEY=
 ## License
 
 MIT
+
