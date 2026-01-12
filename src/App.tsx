@@ -62,6 +62,7 @@ function App() {
         movieId,
         createdBy: localUser.name,
         watched: false,
+        attendees: [localUser.name], // Creator automatically attends
       })
     } catch (err) {
       console.error('Failed to create event:', err)

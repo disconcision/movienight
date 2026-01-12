@@ -41,6 +41,7 @@ export interface ScheduledEvent {
   createdBy: string
   createdAt: Date
   watched: boolean
+  attendees: string[] // Users who confirmed attendance
 }
 
 export interface Config {

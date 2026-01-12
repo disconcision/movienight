@@ -176,3 +176,66 @@ export async function seedTopRatedMovies(
 
   return added
 }
+
+/**
+ * Seed movies from the static IMDB Top 250 list
+ * Uses pre-translated TMDB IDs from src/data/imdb-top-250.json
+ * @param onProgress Callback for progress updates
+ */
+export async function seedIMDBTop250(
+  onProgress?: (current: number, total: number) => void
+): Promise<number> {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase not configured')
+  }
+
+  if (!isTMDBConfigured) {
+    throw new Error('TMDB API key not configured')
+  }
+
+  // Import the static list
+  const { default: imdbList } = await import('../data/imdb-top-250.json')
+
+  // Get existing movies to avoid duplicates
+  const moviesRef = collection(db, MOVIES_COLLECTION)
+  const existingSnapshot = await getDocs(moviesRef)
+  const existingIds = new Set(existingSnapshot.docs.map((d) => d.id))
+
+  let added = 0
+
+  for (let i = 0; i < imdbList.length; i++) {
+    const item = imdbList[i]
+    const tmdbId = String(item.tmdbId)
+
+    // Skip if already exists
+    if (existingIds.has(tmdbId)) {
+      if (onProgress) onProgress(i + 1, imdbList.length)
+      continue
+    }
+
+    try {
+      // Fetch full details from TMDB
+      const details = await getMovieDetails(item.tmdbId)
+      if (!details) continue
+
+      // Convert and save
+      const movieData = tmdbToMovie(details)
+      const movieRef = doc(db, MOVIES_COLLECTION, tmdbId)
+      await setDoc(movieRef, {
+        ...movieData,
+        fetchedAt: serverTimestamp(),
+      })
+
+      added++
+
+      // Rate limiting delay
+      await new Promise((r) => setTimeout(r, 150))
+    } catch (err) {
+      console.error(`Failed to add movie ${item.title}:`, err)
+    }
+
+    if (onProgress) onProgress(i + 1, imdbList.length)
+  }
+
+  return added
+}

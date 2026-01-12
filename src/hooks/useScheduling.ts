@@ -7,6 +7,7 @@ import {
   createEvent,
   deleteEvent,
   updateEvent,
+  toggleRSVP as toggleRSVPDb,
 } from '../db/scheduling'
 import { isFirebaseConfigured } from '../db/firebase'
 
@@ -24,6 +25,7 @@ interface UseSchedulingResult {
   scheduleEvent: (date: string, slot: TimeSlot, movieId?: string) => Promise<string | null>
   cancelEvent: (eventId: string) => Promise<void>
   markWatched: (eventId: string, watched: boolean) => Promise<void>
+  toggleRSVP: (eventId: string) => Promise<void>
   // Computed
   getOverlapForDate: (date: string) => { slot: TimeSlot; users: string[] }[]
 }
@@ -110,6 +112,7 @@ export function useScheduling(currentUserName: string | null): UseSchedulingResu
           movieId: movieId || null,
           createdBy: currentUserName,
           watched: false,
+          attendees: [currentUserName], // Creator automatically attends
         })
         return eventId
       } catch (err) {
@@ -129,6 +132,15 @@ export function useScheduling(currentUserName: string | null): UseSchedulingResu
   const markWatched = useCallback(async (eventId: string, watched: boolean) => {
     await updateEvent(eventId, { watched })
   }, [])
+
+  // Toggle RSVP for an event
+  const toggleRSVP = useCallback(
+    async (eventId: string) => {
+      if (!currentUserName) return
+      await toggleRSVPDb(eventId, currentUserName)
+    },
+    [currentUserName]
+  )
 
   // Get availability overlap for a date
   const getOverlapForDate = useCallback(
@@ -155,6 +167,7 @@ export function useScheduling(currentUserName: string | null): UseSchedulingResu
     scheduleEvent,
     cancelEvent,
     markWatched,
+    toggleRSVP,
     getOverlapForDate,
   }
 }

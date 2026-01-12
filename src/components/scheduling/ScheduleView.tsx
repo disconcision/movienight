@@ -58,6 +58,7 @@ export function ScheduleView({ currentUserName, movies, isFirebaseConnected }: S
     toggleAvailability,
     scheduleEvent,
     cancelEvent,
+    toggleRSVP,
     getOverlapForDate,
   } = useScheduling(currentUserName)
 
@@ -208,6 +209,7 @@ export function ScheduleView({ currentUserName, movies, isFirebaseConnected }: S
                         event={event}
                         movie={movies.find((m) => m.tmdbId === event.movieId)}
                         onCancel={() => cancelEvent(event.id)}
+                        onToggleRSVP={() => toggleRSVP(event.id)}
                         currentUserName={currentUserName}
                       />
                     ) : (
@@ -255,6 +257,9 @@ export function ScheduleView({ currentUserName, movies, isFirebaseConnected }: S
               .map((event) => {
                 const movie = movies.find((m) => m.tmdbId === event.movieId)
                 const { day, date } = formatDate(event.date)
+                const isAttending = event.attendees.some(
+                  (name) => name.toLowerCase() === currentUserName?.toLowerCase()
+                )
                 return (
                   <div
                     key={event.id}
@@ -273,7 +278,23 @@ export function ScheduleView({ currentUserName, movies, isFirebaseConnected }: S
                         {' · '}
                         by {event.createdBy}
                       </div>
+                      {event.attendees.length > 0 && (
+                        <div className="text-xs text-green-400 mt-1">
+                          {event.attendees.length} attending: {event.attendees.join(', ')}
+                        </div>
+                      )}
                     </div>
+                    <button
+                      onClick={() => toggleRSVP(event.id)}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0',
+                        isAttending
+                          ? 'bg-green-600 text-white hover:bg-green-500'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      )}
+                    >
+                      {isAttending ? "I'm in!" : 'RSVP'}
+                    </button>
                   </div>
                 )
               })}
@@ -344,24 +365,40 @@ function EventCell({
   event,
   movie,
   onCancel,
+  onToggleRSVP,
   currentUserName,
 }: {
   event: ScheduledEvent
   movie?: Movie
   onCancel: () => void
+  onToggleRSVP: () => void
   currentUserName: string
 }) {
   const [showMenu, setShowMenu] = useState(false)
+  const isAttending = event.attendees.some(
+    (name) => name.toLowerCase() === currentUserName.toLowerCase()
+  )
+  const attendeeCount = event.attendees.length
 
   return (
     <div
-      className="relative w-full h-12 rounded bg-amber-600/50 border border-amber-500 flex items-center justify-center cursor-pointer"
+      className={cn(
+        'relative w-full h-12 rounded flex items-center justify-center cursor-pointer',
+        isAttending
+          ? 'bg-green-600/50 border border-green-500'
+          : 'bg-amber-600/50 border border-amber-500'
+      )}
       onClick={() => setShowMenu(!showMenu)}
     >
       <span className="text-xs text-white font-medium truncate px-1">
-        {movie?.title?.slice(0, 8) || '🎬'}
-        {movie?.title && movie.title.length > 8 && '...'}
+        {movie?.title?.slice(0, 6) || '🎬'}
+        {movie?.title && movie.title.length > 6 && '...'}
       </span>
+      {attendeeCount > 0 && (
+        <span className="absolute bottom-0.5 right-1 text-[10px] text-white/80">
+          {attendeeCount}
+        </span>
+      )}
 
       {showMenu && (
         <>
@@ -372,13 +409,37 @@ function EventCell({
               setShowMenu(false)
             }}
           />
-          <div className="absolute top-full left-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-2 min-w-[150px]">
-            <div className="text-sm text-gray-200 mb-2">
+          <div className="absolute top-full left-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-3 min-w-[180px]">
+            <div className="text-sm text-gray-200 font-medium mb-1">
               {movie?.title || 'Movie TBD'}
             </div>
             <div className="text-xs text-gray-400 mb-2">
               by {event.createdBy}
             </div>
+
+            {/* Attendees */}
+            {event.attendees.length > 0 && (
+              <div className="text-xs text-green-400 mb-2">
+                {event.attendees.length} attending: {event.attendees.join(', ')}
+              </div>
+            )}
+
+            {/* RSVP button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleRSVP()
+              }}
+              className={cn(
+                'w-full px-2 py-1.5 text-xs font-medium rounded mb-2 transition-colors',
+                isAttending
+                  ? 'bg-green-600 text-white hover:bg-green-500'
+                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              )}
+            >
+              {isAttending ? "I'm in!" : 'RSVP - Count me in'}
+            </button>
+
             {event.createdBy.toLowerCase() === currentUserName.toLowerCase() && (
               <button
                 onClick={(e) => {
