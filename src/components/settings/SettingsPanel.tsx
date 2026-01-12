@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { deleteUser, deleteMovie, clearAllMovies, clearAllEvents, seedTopRatedMovies } from '../../db/admin'
+import { deleteUser, deleteMovie, clearAllMovies, clearAllEvents, seedTopRatedMovies, seedIMDBTop250 } from '../../db/admin'
 import { isTMDBConfigured } from '../../api/tmdb'
 import type { Movie, User } from '../../types'
 import { cn } from '../../lib/utils'
@@ -117,6 +117,27 @@ export function SettingsPanel({
       setMessage({ type: 'success', text: `Added ${added} movies` })
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to seed movies' })
+    } finally {
+      setIsSeeding(false)
+      setSeedProgress(null)
+    }
+  }
+
+  const handleSeedIMDBTop250 = async () => {
+    if (!confirm('This will add movies from the IMDB Top 250 list. Continue?')) {
+      return
+    }
+
+    setIsSeeding(true)
+    setSeedProgress({ current: 0, total: 50 }) // Static list has 50 currently
+
+    try {
+      const added = await seedIMDBTop250((current, total) => {
+        setSeedProgress({ current, total })
+      })
+      setMessage({ type: 'success', text: `Added ${added} movies from IMDB Top 250` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to seed IMDB movies' })
     } finally {
       setIsSeeding(false)
       setSeedProgress(null)
@@ -281,10 +302,49 @@ export function SettingsPanel({
               {/* Seed tab */}
               {activeTab === 'seed' && (
                 <div className="space-y-4">
-                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                    <h3 className="text-gray-200 font-medium mb-2">Seed Top Rated Movies</h3>
+                  {/* IMDB Top 250 section */}
+                  <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-700/30">
+                    <h3 className="text-yellow-200 font-medium mb-2 flex items-center gap-2">
+                      <span>🏆</span> IMDB Top 250
+                    </h3>
                     <p className="text-sm text-gray-400 mb-4">
-                      Add highly-rated movies from TMDB (similar to IMDB Top 250) to your movie list.
+                      Add movies from the IMDB Top 250 list (classic films, fan favorites).
+                      Currently includes the top 50 from the list.
+                    </p>
+
+                    {!isTMDBConfigured ? (
+                      <p className="text-yellow-400 text-sm">
+                        TMDB API key required to fetch movie details.
+                      </p>
+                    ) : seedProgress ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm text-gray-400">
+                          <span>Adding IMDB movies...</span>
+                          <span>{seedProgress.current} / {seedProgress.total}</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-yellow-500 transition-all duration-300"
+                            style={{ width: `${(seedProgress.current / seedProgress.total) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleSeedIMDBTop250}
+                        disabled={isSeeding}
+                        className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 disabled:opacity-50"
+                      >
+                        Add IMDB Top 50
+                      </button>
+                    )}
+                  </div>
+
+                  {/* TMDB Top Rated section */}
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-gray-200 font-medium mb-2">TMDB Top Rated</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Add highly-rated movies from TMDB's own ranking.
                       Movies already in your list will be skipped.
                     </p>
 

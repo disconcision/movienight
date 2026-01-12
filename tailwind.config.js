@@ -21,6 +21,15 @@ export default {
           950: '#4a044e',
         },
       },
+      keyframes: {
+        'slide-in-from-right': {
+          '0%': { transform: 'translateX(100%)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+      },
+      animation: {
+        'slide-in-from-right': 'slide-in-from-right 0.2s ease-out',
+      },
     },
   },
   plugins: [],

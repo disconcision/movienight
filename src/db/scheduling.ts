@@ -153,6 +153,41 @@ export async function updateEvent(
 }
 
 /**
+ * Toggle RSVP for a user on an event
+ */
+export async function toggleRSVP(eventId: string, userName: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) {
+    return
+  }
+
+  const eventRef = doc(db, EVENTS_COLLECTION, eventId)
+  const snapshot = await getDoc(eventRef)
+
+  if (!snapshot.exists()) {
+    throw new Error('Event not found')
+  }
+
+  const data = snapshot.data()
+  const attendees: string[] = data.attendees || []
+  const normalizedName = userName.toLowerCase().trim()
+
+  // Check if user is already in the list (case-insensitive)
+  const existingIndex = attendees.findIndex(
+    (name) => name.toLowerCase() === normalizedName
+  )
+
+  if (existingIndex >= 0) {
+    // Remove from attendees
+    attendees.splice(existingIndex, 1)
+  } else {
+    // Add to attendees
+    attendees.push(userName)
+  }
+
+  await setDoc(eventRef, { attendees }, { merge: true })
+}
+
+/**
  * Delete an event
  */
 export async function deleteEvent(eventId: string): Promise<void> {
@@ -192,6 +227,7 @@ export function subscribeToEvents(
           createdBy: data.createdBy,
           createdAt: data.createdAt?.toDate() || new Date(),
           watched: data.watched || false,
+          attendees: data.attendees || [],
         }
       })
       onUpdate(events)
