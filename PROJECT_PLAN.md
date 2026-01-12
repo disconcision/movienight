@@ -1,5 +1,37 @@
 # Movie Night Coordinator — Project Specification
 
+## Implementation Status
+
+### Completed Features
+
+- [x] **Phase 1: Foundation** — Project scaffolding, Firebase config, TypeScript types, user identity flow
+- [x] **Phase 2: Core Movie Features** — Movie grid display, hover/tap details, IMDB links
+- [x] **Phase 3: Selection & Prioritization** — Toggle unseen status, personal list, drag-drop reorder, Firestore sync
+- [x] **Phase 4: Group Features** — Group view, intersection calculation, priority scoring algorithm
+- [x] **Phase 5: Movie Management** — TMDB search, add/remove movies from master list
+- [x] **Phase 6: Scheduling** — Availability grid (5 weeks), event creation
+
+### Additional Features (Beyond Original Spec)
+
+- [x] **Movie Night Summary** — Prominent UI showing best upcoming slot + top movie pick with runner-ups
+- [x] **Search & Filter** — Search movies by title/year/director/genre, filter by seen/unseen
+- [x] **TMDB Top Rated Seeding** — Seed database with top-rated movies (50/100/150/250)
+- [x] **Settings Panel** — Manage users, movies, and data cleanup
+- [x] **Default Sort by Rating** — Movie grid sorted by TMDB rating (highest first)
+- [x] **Week Navigation** — Schedule view spans 5 weeks with navigation arrows
+- [x] **GitHub Actions Deployment** — Automated CI/CD to GitHub Pages
+
+### Remaining / Future Work
+
+- [ ] **Animations** — Framer Motion animations for state changes (deferred for simplicity)
+- [ ] **Error handling** — More robust error boundaries and user feedback
+- [ ] **Accessibility** — ARIA labels, keyboard navigation improvements
+- [ ] **Mobile refinements** — Bottom sheet details, gesture improvements
+- [ ] **Mark as watched cascade** — When event marked watched, remove from all users' lists
+- [ ] **Event confirmation** — RSVP/confirm attendance for scheduled events
+
+---
+
 ## Overview
 
 A collaborative web app for a friend group to coordinate movie watching. Users select movies they haven't seen from a shared list, prioritize their selections, view the group's collective "unseen intersection," and schedule movie nights based on availability.
