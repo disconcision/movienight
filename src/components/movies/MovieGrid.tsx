@@ -20,10 +20,10 @@ export function MovieGrid({
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMode, setFilterMode] = useState<'all' | 'unseen' | 'seen'>('all')
 
-  // Filter movies based on search and filter mode
+  // Filter and sort movies (default: by rating descending)
   const filteredMovies = useMemo(() => {
     const unseenSet = new Set(userUnseenMovies)
-    let result = movies
+    let result = [...movies]
 
     // Apply text search
     if (searchQuery.trim()) {
@@ -43,6 +43,9 @@ export function MovieGrid({
     } else if (filterMode === 'seen') {
       result = result.filter((movie) => !unseenSet.has(movie.tmdbId))
     }
+
+    // Sort by rating (highest first)
+    result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 
     return result
   }, [movies, searchQuery, filterMode, userUnseenMovies])
