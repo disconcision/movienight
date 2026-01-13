@@ -37,7 +37,8 @@ export interface ScheduledEvent {
   id: string
   movieId: string | null // TMDB ID, null if just a placeholder
   date: string // ISO date
-  timeSlot: TimeSlot
+  timeSlot: TimeSlot // Keep for backwards compat, derived from startHour
+  startHour: number // 13-21 (1pm-9pm in 24hr format)
   createdBy: string
   createdAt: Date
   watched: boolean
@@ -65,6 +66,23 @@ export const TIME_SLOTS: readonly TimeSlot[] = ['afternoon', 'evening'] as const
 export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
   afternoon: 'Afternoon (12pm-5pm)',
   evening: 'Evening (6pm-11pm)',
+}
+
+// Start hours available for scheduling (1pm-9pm)
+export const START_HOURS = [13, 14, 15, 16, 17, 18, 19, 20, 21] as const
+export type StartHour = (typeof START_HOURS)[number]
+
+// Helper to format hour for display
+export function formatHour(hour: number): string {
+  if (hour === 12) return '12pm'
+  if (hour < 12) return `${hour}am`
+  if (hour === 24) return '12am'
+  return `${hour - 12}pm`
+}
+
+// Derive timeSlot from hour (for backwards compat)
+export function getTimeSlotFromHour(hour: number): TimeSlot {
+  return hour < 18 ? 'afternoon' : 'evening'
 }
 
 // ============================================

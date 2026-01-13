@@ -8,8 +8,7 @@ import { SettingsPanel } from './components/settings'
 import { MovieNightSummary } from './components/summary'
 import { countUnseenBy } from './lib/priority'
 import { cn } from './lib/utils'
-import type { User, Movie, TimeSlot } from './types'
-import { createEvent } from './db/scheduling'
+import type { User, Movie } from './types'
 
 type Tab = 'movies' | 'my-list' | 'group' | 'schedule'
 
@@ -51,23 +50,6 @@ function App() {
 
   // Settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-
-  // Handle scheduling from summary
-  const handleScheduleFromSummary = async (date: string, slot: TimeSlot, movieId: string) => {
-    if (!localUser) return
-    try {
-      await createEvent({
-        date,
-        timeSlot: slot,
-        movieId,
-        createdBy: localUser.name,
-        watched: false,
-        attendees: [localUser.name], // Creator automatically attends
-      })
-    } catch (err) {
-      console.error('Failed to create event:', err)
-    }
-  }
 
   // Show login modal if no user
   const showLoginModal = !isUserLoading && !localUser
@@ -272,7 +254,6 @@ function App() {
               allAvailability={allAvailability}
               currentUserName={localUser.name}
               isFirebaseConnected={isFirebaseConnected}
-              onSchedule={handleScheduleFromSummary}
             />
           )}
 

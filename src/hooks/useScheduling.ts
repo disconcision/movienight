@@ -22,7 +22,7 @@ interface UseSchedulingResult {
   isLoading: boolean
   // Actions
   toggleAvailability: (date: string, slot: TimeSlot) => Promise<void>
-  scheduleEvent: (date: string, slot: TimeSlot, movieId?: string) => Promise<string | null>
+  scheduleEvent: (date: string, startHour: number, movieId?: string) => Promise<string | null>
   cancelEvent: (eventId: string) => Promise<void>
   markWatched: (eventId: string, watched: boolean) => Promise<void>
   toggleRSVP: (eventId: string) => Promise<void>
@@ -102,13 +102,13 @@ export function useScheduling(currentUserName: string | null): UseSchedulingResu
 
   // Schedule a new event
   const scheduleEvent = useCallback(
-    async (date: string, slot: TimeSlot, movieId?: string): Promise<string | null> => {
+    async (date: string, startHour: number, movieId?: string): Promise<string | null> => {
       if (!currentUserName) return null
 
       try {
         const eventId = await createEvent({
           date,
-          timeSlot: slot,
+          startHour,
           movieId: movieId || null,
           createdBy: currentUserName,
           watched: false,
