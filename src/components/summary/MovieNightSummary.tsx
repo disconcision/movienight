@@ -9,7 +9,6 @@ interface MovieNightSummaryProps {
   allAvailability: Availability[]
   currentUserName: string | null
   isFirebaseConnected: boolean
-  onSchedule?: (date: string, slot: TimeSlot, movieId: string) => void
 }
 
 interface BestSlot {
@@ -99,7 +98,6 @@ export function MovieNightSummary({
   allAvailability,
   currentUserName,
   isFirebaseConnected,
-  onSchedule,
 }: MovieNightSummaryProps) {
   // Get intersection movies with scores
   const intersectionMovies = useMemo(() => {
@@ -249,15 +247,6 @@ export function MovieNightSummary({
                 </div>
               )}
 
-              {/* Schedule action */}
-              {bestSlot && bestSlot.users.length > 0 && onSchedule && (
-                <button
-                  onClick={() => onSchedule(bestSlot.date, bestSlot.slot, topMovie.movieId)}
-                  className="mt-3 w-full py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  Schedule This Movie Night
-                </button>
-              )}
             </div>
           ) : (
             <p className="text-gray-400 text-sm">
