@@ -8,7 +8,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
-import { getTopRatedMovies, getMovieDetails, tmdbToMovie, isTMDBConfigured } from '../api/tmdb'
+import { getTopRatedMovies, getMovieDetails, tmdbToMovie, isTMDBConfigured, findByIMDBId } from '../api/tmdb'
 
 const USERS_COLLECTION = 'users'
 const MOVIES_COLLECTION = 'movies'
@@ -179,7 +179,7 @@ export async function seedTopRatedMovies(
 
 /**
  * Seed movies from the static IMDB Top 250 list
- * Uses pre-translated TMDB IDs from src/data/imdb-top-250.json
+ * Looks up TMDB IDs from IMDB IDs at runtime via TMDB API
  * @param onProgress Callback for progress updates
  */
 export async function seedIMDBTop250(
@@ -196,37 +196,61 @@ export async function seedIMDBTop250(
   // Import the static list
   const { default: imdbList } = await import('../data/imdb-top-250.json')
 
-  // Get existing movies to avoid duplicates
+  // Get existing movies to avoid duplicates (by IMDB ID since we don't have TMDB IDs yet)
   const moviesRef = collection(db, MOVIES_COLLECTION)
   const existingSnapshot = await getDocs(moviesRef)
-  const existingIds = new Set(existingSnapshot.docs.map((d) => d.id))
+  const existingImdbIds = new Set(
+    existingSnapshot.docs.map((d) => d.data().imdbId).filter(Boolean)
+  )
+  const existingTmdbIds = new Set(existingSnapshot.docs.map((d) => d.id))
 
   let added = 0
 
   for (let i = 0; i < imdbList.length; i++) {
     const item = imdbList[i]
-    const tmdbId = String(item.tmdbId)
 
-    // Skip if already exists
-    if (existingIds.has(tmdbId)) {
+    // Skip if already exists by IMDB ID
+    if (existingImdbIds.has(item.imdbId)) {
       if (onProgress) onProgress(i + 1, imdbList.length)
       continue
     }
 
     try {
+      // Look up TMDB ID from IMDB ID
+      const tmdbId = await findByIMDBId(item.imdbId)
+      if (!tmdbId) {
+        console.warn(`Could not find TMDB ID for ${item.title} (${item.imdbId})`)
+        if (onProgress) onProgress(i + 1, imdbList.length)
+        continue
+      }
+
+      // Skip if we already have this TMDB ID
+      if (existingTmdbIds.has(String(tmdbId))) {
+        if (onProgress) onProgress(i + 1, imdbList.length)
+        continue
+      }
+
+      // Small delay after lookup
+      await new Promise((r) => setTimeout(r, 100))
+
       // Fetch full details from TMDB
-      const details = await getMovieDetails(item.tmdbId)
-      if (!details) continue
+      const details = await getMovieDetails(tmdbId)
+      if (!details) {
+        if (onProgress) onProgress(i + 1, imdbList.length)
+        continue
+      }
 
       // Convert and save
       const movieData = tmdbToMovie(details)
-      const movieRef = doc(db, MOVIES_COLLECTION, tmdbId)
+      const movieRef = doc(db, MOVIES_COLLECTION, String(tmdbId))
       await setDoc(movieRef, {
         ...movieData,
         fetchedAt: serverTimestamp(),
       })
 
       added++
+      existingTmdbIds.add(String(tmdbId))
+      existingImdbIds.add(item.imdbId)
 
       // Rate limiting delay
       await new Promise((r) => setTimeout(r, 150))
