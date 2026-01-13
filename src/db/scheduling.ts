@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from './firebase'
 import type { Availability, ScheduledEvent, TimeSlot } from '../types'
+import { getTimeSlotFromHour } from '../types'
 
 const AVAILABILITY_COLLECTION = 'availability'
 const EVENTS_COLLECTION = 'events'
@@ -116,21 +117,32 @@ export function subscribeToAvailability(
 
 /**
  * Create a new scheduled event
+ * Uses date_hour as ID to prevent duplicates for the same time
  */
 export async function createEvent(
-  event: Omit<ScheduledEvent, 'id' | 'createdAt'>
+  event: Omit<ScheduledEvent, 'id' | 'createdAt' | 'timeSlot'> & { timeSlot?: TimeSlot }
 ): Promise<string> {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase not configured')
   }
 
-  const eventsRef = collection(db, EVENTS_COLLECTION)
-  const eventId = `${event.date}_${event.timeSlot}_${Date.now()}`
-  const eventRef = doc(eventsRef, eventId)
+  // Use date_hour as the ID - naturally prevents duplicates
+  const eventId = `${event.date}_${event.startHour}`
+  const eventRef = doc(db, EVENTS_COLLECTION, eventId)
+
+  // Check if event already exists
+  const existing = await getDoc(eventRef)
+  if (existing.exists()) {
+    throw new Error('An event already exists for this time slot')
+  }
+
+  // Derive timeSlot from hour for backwards compatibility
+  const timeSlot = event.timeSlot || getTimeSlotFromHour(event.startHour)
 
   await setDoc(eventRef, {
     ...event,
     id: eventId,
+    timeSlot,
     createdAt: serverTimestamp(),
   })
 
@@ -201,6 +213,7 @@ export async function deleteEvent(eventId: string): Promise<void> {
 
 /**
  * Subscribe to all scheduled events
+ * Filters out past dates and handles legacy events without startHour
  */
 export function subscribeToEvents(
   onUpdate: (events: ScheduledEvent[]) => void,
@@ -217,19 +230,28 @@ export function subscribeToEvents(
   return onSnapshot(
     q,
     (snapshot) => {
-      const events: ScheduledEvent[] = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: data.id,
-          movieId: data.movieId,
-          date: data.date,
-          timeSlot: data.timeSlot,
-          createdBy: data.createdBy,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          watched: data.watched || false,
-          attendees: data.attendees || [],
-        }
-      })
+      const today = new Date().toISOString().split('T')[0]
+
+      const events: ScheduledEvent[] = snapshot.docs
+        .map((doc) => {
+          const data = doc.data()
+          // Handle legacy events without startHour
+          const startHour = data.startHour || (data.timeSlot === 'afternoon' ? 15 : 19)
+          return {
+            id: data.id,
+            movieId: data.movieId,
+            date: data.date,
+            timeSlot: data.timeSlot,
+            startHour,
+            createdBy: data.createdBy,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            watched: data.watched || false,
+            attendees: data.attendees || [],
+          }
+        })
+        // Filter out past dates (keep today and future)
+        .filter((event) => event.date >= today)
+
       onUpdate(events)
     },
     onError
