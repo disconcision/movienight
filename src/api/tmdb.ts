@@ -98,6 +98,47 @@ interface TMDBListResult {
   total_results: number
 }
 
+interface TMDBFindResult {
+  movie_results: Array<{
+    id: number
+    title: string
+    release_date: string
+    poster_path: string | null
+    overview: string
+    vote_average: number
+  }>
+}
+
+/**
+ * Find a movie by its IMDB ID
+ * Returns the TMDB ID if found, null otherwise
+ */
+export async function findByIMDBId(imdbId: string): Promise<number | null> {
+  if (!TMDB_API_KEY) {
+    console.warn('TMDB API key not configured')
+    return null
+  }
+
+  const params = new URLSearchParams({
+    api_key: TMDB_API_KEY,
+    external_source: 'imdb_id',
+  })
+
+  const response = await fetch(`${TMDB_API_BASE}/find/${imdbId}?${params}`)
+
+  if (!response.ok) {
+    throw new Error(`TMDB find failed: ${response.statusText}`)
+  }
+
+  const data: TMDBFindResult = await response.json()
+
+  if (data.movie_results && data.movie_results.length > 0) {
+    return data.movie_results[0].id
+  }
+
+  return null
+}
+
 /**
  * Get top rated movies from TMDB (similar to IMDB Top 250)
  * @param pages Number of pages to fetch (20 movies per page)

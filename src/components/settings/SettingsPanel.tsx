@@ -129,7 +129,7 @@ export function SettingsPanel({
     }
 
     setIsSeeding(true)
-    setSeedProgress({ current: 0, total: 50 }) // Static list has 50 currently
+    setSeedProgress({ current: 0, total: 250 }) // Static list has 250 movies
 
     try {
       const added = await seedIMDBTop250((current, total) => {
@@ -309,7 +309,6 @@ export function SettingsPanel({
                     </h3>
                     <p className="text-sm text-gray-400 mb-4">
                       Add movies from the IMDB Top 250 list (classic films, fan favorites).
-                      Currently includes the top 50 from the list.
                     </p>
 
                     {!isTMDBConfigured ? (
@@ -335,7 +334,7 @@ export function SettingsPanel({
                         disabled={isSeeding}
                         className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 disabled:opacity-50"
                       >
-                        Add IMDB Top 50
+                        Add IMDB Top 250
                       </button>
                     )}
                   </div>
